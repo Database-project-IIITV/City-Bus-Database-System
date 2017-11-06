@@ -1,0 +1,9 @@
+#include<stdio.h>
+#include<conio.h>
+
+int main()
+{
+	EXEC SQL CONNECT TO testServer[@localhost][:5432]
+	printf("Connection successful!");
+	return 0;
+}
