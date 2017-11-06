@@ -1,5 +1,0 @@
-seats, passes, distance, cost/KM, 2
-gen - 35, 10, full distance, cost/KM, 2
-ac - 32, 8, full distance, cost/KM, 2
-
-(Pass_Type)*(Rate/KM)*(Route_Distance)*3/4

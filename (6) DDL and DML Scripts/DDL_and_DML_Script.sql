@@ -113,6 +113,16 @@ PRIMARY KEY (E_id,contact_no),
 FOREIGN KEY (E_Id) REFERENCES Employee(E_Id)
 );
 
+CREATE TABLE buses_in_garage(
+bus_no integer,
+route_no char(4),
+Starting_time time,
+PRIMARY KEY (bus_no,route_no),
+FOREIGN KEY (Bus_no) REFERENCES Bus(Bus_no),
+FOREIGN KEY (Route_no) REFERENCES Route(Route_no)
+
+);
+	
 CREATE TABLE Sold_passes(
 Bus_type varchar(10),
 Pass_type varchar(10),

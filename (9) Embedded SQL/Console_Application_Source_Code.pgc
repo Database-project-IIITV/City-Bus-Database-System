@@ -1,0 +1,221 @@
+/********************************************************************
+ *		               CITY BUS TRANSPORT SYSTEM                    *
+ *                                                                  *
+ *Program for accessing the City Bus Transport Database using ecpg. *
+ *This program executes some of the sample queries from the queries *
+ *developed for our database.                                       *
+ *                                                                  *
+ *Group No - 17                                                     *
+ *                                                                  *
+ *Members List: -                                                   *
+ *1. Akash Agrawal (201551090)                                      *
+ *2. Siddharth Jain (201551093)                                     *
+ *3. Prakhar Kulshrestha (201551083)                                *
+ *4. Sakshee Jain (201551074)                                       *
+ *******************************************************************/
+ 
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<ctype.h>
+
+EXEC SQL BEGIN DECLARE SECTION;
+char query[100];
+EXEC SQL END DECLARE SECTION;
+
+//Error control in case of an error in connection
+void print_connection_error() {
+	
+	fprintf(stderr, "\nAn error has occured!\n");
+    fprintf(stderr, "==== error details ====\n");
+    fprintf(stderr, "%s\n", sqlca.sqlerrm.sqlerrmc);
+    fprintf(stderr, "=======================\n");
+    fprintf(stderr, "Try connecting to the database later again.\n\n");
+    exit(0);
+     
+}
+
+//Error in case of an update failure due to parameter mismatch
+void print_update_error() {
+	
+	printf("\nAn error has occured!\n");
+    printf("==== error details ====\n");
+	printf("Update failed! Please recheck the parameters and try again!\n");
+	printf("=======================\n\n");
+     
+}
+
+//Executes the query returning the schedule of buses between the two stops
+void ExecuteQuery(char* query) {
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	char bus_type[10], route[4], arr[10], reach[10];
+	int distance, fare;
+	EXEC SQL END DECLARE SECTION;
+
+
+	EXEC SQL PREPARE query_prep FROM :query;
+	EXEC SQL DECLARE cur CURSOR FOR query_prep;
+	EXEC SQL OPEN cur;
+	EXEC SQL WHENEVER NOT FOUND DO BREAK;
+	EXEC SQL WHENEVER SQLWARNING SQLPRINT;
+	EXEC SQL WHENEVER SQLERROR SQLPRINT;
+	
+	printf("Bus Type\t Route No\t Distance\t Arrival Time\t Reaching Time\t Fare\n");
+	while(1) {
+	
+		EXEC SQL FETCH cur INTO :bus_type, :route, :distance, :arr, :reach, :fare;
+		printf("%s\t\t%6s\t\t%5d\t\t%11s\t%11s\t%4d\n", bus_type, route, distance, arr, reach, fare);
+	
+	}
+	
+	printf("\n");
+	
+	EXEC SQL CLOSE cur;
+
+}
+
+//Function for updating the contact number of an employee already in the database
+void ExecuteUpdate() {
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	char eid[10], old_phone[10], new_phone[10];	
+	EXEC SQL END DECLARE SECTION;
+
+	printf("Enter the employee ID of the employee: ");
+	scanf("%s", eid);
+	
+	printf("Enter the old mobile number: ");
+	scanf("%s", old_phone);
+	
+	printf("Enter the new mobile number: ");
+	scanf("%s", new_phone);
+	
+	EXEC SQL WHENEVER NOT FOUND CONTINUE;
+	EXEC SQL WHENEVER SQLWARNING SQLPRINT;
+	EXEC SQL WHENEVER SQLERROR SQLPRINT;
+	EXEC SQL UPDATE contacts SET contact_no = :new_phone WHERE e_id = :eid AND contact_no = :old_phone;
+	
+	if(sqlca.sqlerrd[2] == 0) {
+	
+		print_update_error();
+	
+	}
+	
+	else {
+	
+		EXEC SQL COMMIT;
+		printf("Updated detail successfully!\n\n");
+		
+	}
+
+}
+
+//Provides the user list of all bus stops in the city for easier selection of source and destination
+void bus_enquiry() {
+	
+	EXEC SQL BEGIN DECLARE SECTION;
+	char query_stop[100], bName[30], bCode[5];
+	char src[5], dtn[5];
+	EXEC SQL END DECLARE SECTION;
+	
+	int i = 0;
+
+	printf("This function helps you to identify the buses available from your location to the required destination.\n");
+	printf("All stops in the city of Gandhinagar:\nStop Code\tStop Name\n");
+	
+	strcpy(query_stop, "select stop_code, stop_name from bus_stop");
+	
+	EXEC SQL PREPARE query_prep FROM :query_stop;
+	EXEC SQL DECLARE stop_cur CURSOR FOR query_prep;
+	EXEC SQL OPEN stop_cur;
+	EXEC SQL WHENEVER NOT FOUND DO BREAK;
+	
+	while(1) {
+	
+		EXEC SQL FETCH stop_cur INTO :bCode, :bName;
+		printf("%6s \t\t%s\n", bCode, bName);
+	
+	}
+	printf("\n");
+	
+	EXEC SQL CLOSE stop_cur;
+	
+	printf("Enter your stop code referring to the above table: ");
+	scanf("%s", src);
+	
+	while(src[i]) {
+	
+		src[i] = toupper(src[i]);
+		i++;
+	
+	}
+	printf("Enter the destination stop code referring to the above table: ");
+	scanf("%s", dtn);
+	
+	i=0;
+	
+	while(src[i]) {
+	
+		dtn[i] = toupper(dtn[i]);
+		i++;
+	
+	}
+	strcpy(query, "Select * from schedule_enquiry('");
+	strcat(query, src);
+	strcat(query, "', '");
+	strcat(query, dtn);
+	strcat(query, "') order by arrival");
+	
+	ExecuteQuery(query);
+
+}
+
+//The heart of the program, ahndling the flow of control of the database
+int main(void)
+{
+
+	EXEC SQL BEGIN DECLARE SECTION;
+	const char *target = "201551090@10.100.1.62:5432";
+	const char *user = "201551090";
+	const char *passwd = "alldone123";
+	EXEC SQL END DECLARE SECTION;
+	
+	bool complete = false;
+	int option;
+	
+	EXEC SQL WHENEVER SQLERROR CALL print_connection_error();
+	
+	EXEC SQL CONNECT TO :target USER :user USING :passwd;
+	
+	printf("\nConnection established to the database %s successfully!\n\n", target);
+	
+	EXEC SQL SET search_path to transport;
+	
+	while(!complete) {
+	
+		printf("1. Get the details of buses from stop A to stop B (SELECT type of query)\n");
+		printf("2. Update contact number of an employee (UPDATE type of query)\n");
+		printf("3. Exit\n");
+		printf("Enter appropriate option.\n");
+		scanf("%d", &option);
+		
+		switch(option) {
+		
+			case 1: bus_enquiry();
+				break;
+			case 2: ExecuteUpdate();
+				break;
+			case 3: complete = true;
+				break;
+			default: printf("Incorrect option selected! Try again!\n");
+		
+		}
+	
+	}
+	
+    EXEC SQL DISCONNECT;
+    printf("\nLogged out successfully!\n");
+    
+    return 0;
+}
